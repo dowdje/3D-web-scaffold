@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This is a **3D platformer game development playground** — a reusable scaffold for rapidly prototyping platformer-style games. It is not a finished game; it's foundational infrastructure meant to be forked and extended into different game projects.
+This is a **3D physics playground** — an open-world sandbox with multiple interactive systems built on a 200x200 ground plane. Players can explore themed zones, ride vehicles, swing on ropes, and interact with physics-driven objects.
 
 ## Tech Stack
 
@@ -32,21 +32,54 @@ npm run preview  # Preview production build
 - `src/utils/` — Pure helper functions
 - `src/assets/` — Static assets (models, textures, sounds)
 
+### Controls (`src/systems/controls.js`)
+- **W/S** — forward/backward, **A/D** — turn left/right, **Q/E** — strafe
+- **Space** — jump, **Shift** — sprint
+- **C** — mount/dismount (worm, dirt bike)
+- **F** — grab (rope swings)
+- **G** — toggle golf mode, **H** — swing club
+- **1/2** — switch between player characters
+
 ### Player Controller (`src/components/Player/Player.jsx`)
 This is the most complex and sensitive file. It handles:
 - Physics-based movement using a **capsule RigidBody** with locked rotations
 - **Tank-style controls** — A/D rotate the player (via a `yawRef`), W/S move forward/backward along the facing direction, Q/E strafe perpendicular to facing
+- Two player characters switchable with 1/2 keys (different physics profiles in `PLAYER` vs `HUMAN_PLAYER` constants)
 - The player's facing direction (`yaw`) is stored in a ref and published to the Zustand store (`playerYaw`) so the camera can orbit behind the player
 - Ground detection via **raycasting** downward from the capsule bottom
+- Surface friction detection — reads collider friction to adjust movement (ice, mud, etc.)
 - **Coyote time** — brief jump grace period after leaving an edge
 - **Jump buffering** — pre-landing jump inputs are queued and executed on ground contact
 - **Air control** — reduced movement multiplier while airborne
 - Auto-respawn when falling below `PLAYER.RESPAWN_Y`
+- Mount/dismount for worm and dirt bike via proximity checks
 
 When modifying the player controller, be careful with:
 - The `useFrame` loop runs every frame; avoid allocations inside it (reuse the module-level temp vectors like `_direction`)
 - `rigidBodyRef.current` can be null during initialization — always null-check
 - `enabledRotations={[false, false, false]}` on the RigidBody prevents physics from tumbling the capsule; rotation is handled manually on the visual model only
+
+### Vehicles & Mounts
+- **Dirt Bike** (`src/components/Level/DirtBike.jsx`) — kinematicPosition body, raycast ground-following, ramp launching, terrain friction detection (ice/water/mud/sand modify speed, decel, and turning)
+- **Giant Worm** (`src/components/Level/Worm.jsx`) — multi-segment kinematic body, player rides the head segment
+- Both use proximity-based mounting (C key) and store mount state in Zustand
+
+### Level: Sandbox (`src/components/Level/Sandbox.jsx`)
+The main playground level containing:
+- **Dirt Track** — 14m-wide rectangular loop near map perimeter (center ±91) with ramps, hills, and terrain zones (water, ice, mud, sand)
+- **Perimeter Wall** — tall walls at ±100 containing the play area
+- **Trampoline Zone** — high-restitution bouncy surfaces and platforms
+- **Ice Rink** — near-zero friction surfaces with sliding crates and pucks
+- **Rope Swings** — 3 swingable ropes with grab mechanics
+- **Golf** — club + ball system
+
+### Dirt Track Terrain System
+Terrain zones are higher-y patches (y=0.08) on the track so the bike's downward raycast hits them instead of the track below. Each has a different `friction` value on its `RigidBody`:
+- **Water** (blue `#3388cc`, friction=0.15) — caps speed, more drag
+- **Ice** (cyan `#aaeeff`, friction=0.02) — minimal decel, poor turning
+- **Mud** (dark brown `#4a3520`, friction=2.0) — heavy drag, low max speed
+- **Sand** (tan `#c2b280`, friction=1.5) — moderate drag
+The bike reads friction via `castRayAndGetNormal` → `collider.friction()` and adjusts acceleration, max speed, coast decel, and turn multiplier.
 
 ### State Management
 All shared game state lives in **Zustand** (`src/systems/gameStore.js`). Access patterns:
@@ -54,8 +87,10 @@ All shared game state lives in **Zustand** (`src/systems/gameStore.js`). Access 
 - Inside `useFrame` or non-React code: `useGameStore.getState().field` (no subscription, no re-render)
 - Never call `useGameStore()` without a selector in render paths — it causes re-renders on every state change
 
+Key state groups: player position/yaw, player2 state, mount states (worm, bike), rope grabs, golf mode, debug flags.
+
 ### Constants & Tuning (`src/systems/constants.js`)
-All gameplay-affecting numbers (speeds, forces, distances, sizes) are centralized here. When adding new mechanics, define tunable values as named constants in this file rather than hardcoding in components.
+All gameplay-affecting numbers (speeds, forces, distances, sizes) are centralized here. Includes `PLAYER`, `HUMAN_PLAYER`, `CAMERA`, `ROPE`, `GOLF`, `WORM`, `DIRT_BIKE`, and `WORLD` config objects. When adding new mechanics, define tunable values as named constants in this file rather than hardcoding in components.
 
 ### Level Design Pattern
 Levels are React components that compose `<Platform>` and `<RigidBody>` elements. The `Platform` component (`src/components/Level/Platform.jsx`) is the reusable building block — it wraps a box mesh + fixed RigidBody + optional label.
@@ -66,15 +101,19 @@ To create a new level:
 3. Swap it into `App.jsx` in place of `<Sandbox />`
 
 ### Physics Notes
-- Physics world runs with `gravity={[0, -30, 0]}` — higher than real gravity for snappier platformer feel
+- Physics world runs with `gravity={[0, -9.81, 0]}` — realistic Earth gravity
 - `timeStep="vary"` ties physics to frame delta — fine for a single-player game, would need fixed step for multiplayer
 - All static level geometry uses `type="fixed"` RigidBodies
 - The player is `type="dynamic"` with manual velocity control (not force-based)
+- Vehicles (dirt bike, worm) use `type="kinematicPosition"` with manual position updates
 - For moving platforms, use `type="kinematicPosition"` and update position in `useFrame`
 - Sensors (`sensor` prop on colliders) are used for triggers/collectibles — they detect overlap without physical collision
 
 ### Camera System
-The `FollowCamera` runs in `useFrame` and lerps toward an offset position behind/above the player. It reads `playerPosition` and `playerYaw` from the Zustand store via `getState()` (not via React subscription) to avoid render overhead. The camera offset is rotated by the player's yaw so it always orbits behind the facing direction.
+The `FollowCamera` runs in `useFrame` and lerps toward an offset position behind/above the active entity (player, worm, or bike depending on mount state). It reads position and yaw from the Zustand store via `getState()` (not via React subscription) to avoid render overhead. The camera offset is rotated by the entity's yaw so it always orbits behind the facing direction.
+
+### HUD (`src/components/UI/HUD.jsx`)
+Overlay showing context-sensitive info: speed when on bike, mount prompts when near vehicles, golf power meter, rope grab hints.
 
 ## Code Style & Conventions
 
@@ -91,7 +130,11 @@ The `FollowCamera` runs in `useFrame` and lerps toward an offset position behind
 
 **Adding enemies/NPCs**: New component with its own `<RigidBody>`, AI logic in `useFrame`, collision detection for player interaction.
 
-**Swapping the player model**: Replace the contents of `PlayerModel.jsx` with a GLTF import via `useGLTF` from drei. Keep the `<group>` wrapper for rotation.
+**Swapping the player model**: Replace the contents of `PlayerModel.jsx` or `HumanModel.jsx` with a GLTF import via `useGLTF` from drei. Keep the `<group>` wrapper for rotation.
+
+**Adding a new vehicle**: Follow the DirtBike pattern — kinematicPosition body, raycast ground-following, mount/dismount via proximity + C key, store mount state in gameStore.
+
+**Adding a new terrain type**: Add a RigidBody with a distinct friction value at y=0.08 on the track. Add a friction threshold check in DirtBike.jsx's terrain modifier block.
 
 **Adding sound**: Use `drei`'s `<PositionalAudio>` or the Web Audio API. Trigger from game store state changes.
 

@@ -19,6 +19,16 @@ export const useGameStore = create((set, get) => ({
   playerYaw: 0,
   setPlayerYaw: (yaw) => set({ playerYaw: yaw }),
 
+  // --- Active player ---
+  activePlayer: 1,
+  setActivePlayer: (n) => set({ activePlayer: n }),
+
+  // --- Player 2 state ---
+  player2Position: [3, 5, 0],
+  setPlayer2Position: (pos) => set({ player2Position: pos }),
+  player2Yaw: 0,
+  setPlayer2Yaw: (yaw) => set({ player2Yaw: yaw }),
+
   // --- Game phase ---
   phase: 'playing', // 'menu' | 'playing' | 'paused' | 'gameover'
   setPhase: (phase) => set({ phase }),
@@ -26,6 +36,54 @@ export const useGameStore = create((set, get) => ({
   // --- Camera ---
   cameraMode: 'thirdPerson', // 'thirdPerson' | 'firstPerson' | 'orbit'
   setCameraMode: (mode) => set({ cameraMode: mode }),
+
+  // --- Rope swings ---
+  ropeRegistry: {},
+  registerRope: (id, entry) =>
+    set((s) => ({ ropeRegistry: { ...s.ropeRegistry, [id]: entry } })),
+  unregisterRope: (id) =>
+    set((s) => {
+      const { [id]: _, ...rest } = s.ropeRegistry
+      return { ropeRegistry: rest }
+    }),
+  ropeGrabs: {},
+  setRopeGrab: (playerId, data) =>
+    set((s) => ({ ropeGrabs: { ...s.ropeGrabs, [playerId]: data } })),
+  clearRopeGrab: (playerId) =>
+    set((s) => {
+      const { [playerId]: _, ...rest } = s.ropeGrabs
+      return { ropeGrabs: rest }
+    }),
+  nearRope: false,
+  setNearRope: (v) => set({ nearRope: v }),
+
+  // --- Golf ---
+  golfMode: false,
+  setGolfMode: (v) => set({ golfMode: v }),
+  golfPower: 0,
+  setGolfPower: (v) => set({ golfPower: v }),
+
+  // --- Worm ---
+  wormMounted: false,
+  setWormMounted: (v) => set({ wormMounted: v }),
+  wormHeadRef: null,
+  setWormHeadRef: (ref) => set({ wormHeadRef: ref }),
+  wormYaw: 0,
+  setWormYaw: (yaw) => set({ wormYaw: yaw }),
+  nearWorm: false,
+  setNearWorm: (v) => set({ nearWorm: v }),
+
+  // --- Dirt Bike ---
+  bikeMounted: false,
+  setBikeMounted: (v) => set({ bikeMounted: v }),
+  bikeRef: null,
+  setBikeRef: (ref) => set({ bikeRef: ref }),
+  bikeYaw: 0,
+  setBikeYaw: (yaw) => set({ bikeYaw: yaw }),
+  nearBike: false,
+  setNearBike: (v) => set({ nearBike: v }),
+  bikeSpeed: 0,
+  setBikeSpeed: (v) => set({ bikeSpeed: v }),
 
   // --- Respawn ---
   respawnPoint: [0, 5, 0],

@@ -7,6 +7,12 @@ export const Controls = {
   strafeRight: 'strafeRight',
   jump: 'jump',
   sprint: 'sprint',
+  selectPlayer1: 'selectPlayer1',
+  selectPlayer2: 'selectPlayer2',
+  grab: 'grab',
+  golfMode: 'golfMode',
+  swing: 'swing',
+  mount: 'mount',
 }
 
 export const CONTROLS_MAP = [
@@ -18,4 +24,10 @@ export const CONTROLS_MAP = [
   { name: Controls.strafeRight, keys: ['KeyE'] },
   { name: Controls.jump, keys: ['Space'] },
   { name: Controls.sprint, keys: ['ShiftLeft', 'ShiftRight'] },
+  { name: Controls.selectPlayer1, keys: ['Digit1'] },
+  { name: Controls.selectPlayer2, keys: ['Digit2'] },
+  { name: Controls.grab, keys: ['KeyF'] },
+  { name: Controls.golfMode, keys: ['KeyG'] },
+  { name: Controls.swing, keys: ['KeyH'] },
+  { name: Controls.mount, keys: ['KeyC'] },
 ]
