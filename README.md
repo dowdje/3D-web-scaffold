@@ -20,10 +20,11 @@ Open `http://localhost:5173` and start exploring.
 | Q/E | Strafe left / right |
 | Space | Jump |
 | Shift | Sprint |
-| C | Mount / dismount vehicle |
-| F | Grab rope |
+| C | Mount / dismount (vehicle, car smash, batting cage) |
+| F | Grab rope / pick up basketball |
 | G | Toggle golf mode |
-| H | Swing golf club |
+| H | Swing (golf club, hammer, bat) |
+| R | Reset (car smash) |
 | 1/2 | Switch player character |
 
 ## What's in the World
@@ -35,6 +36,10 @@ Open `http://localhost:5173` and start exploring.
 - **Trampoline Zone** — bouncy floors and platforms that launch you skyward
 - **Ice Rink** — near-zero friction surface with sliding pucks and crates
 - **Golf** — club and ball with charge-based power shots
+- **Aquarium** — large glass tank with swimming fish
+- **Car Smash** — smash a car with a sledgehammer, panels deform and fly off
+- **Basketball** — pick up and shoot a ball at a hoop with charge-based power
+- **Batting Cage** — step up to the plate, swing at pitches from an auto-pitching machine (timing-based hit detection)
 - **Perimeter Wall** — keeps everything contained
 
 ## Tech Stack
@@ -63,6 +68,10 @@ src/
       DirtBike.jsx                 # Rideable dirt bike with terrain friction
       RopeSwing.jsx                # Grab-and-swing rope physics
       Worm.jsx                     # Giant rideable worm
+      Aquarium.jsx                 # Glass tank with fish
+      CarSmash.jsx                 # Destructible car with hammer
+      Basketball.jsx               # Court with hoop and ball
+      BattingCage.jsx              # Pitching machine + bat swing
       Platform.jsx                 # Reusable platform building block
     Player/
       Player.jsx                   # Player controller (physics + input)

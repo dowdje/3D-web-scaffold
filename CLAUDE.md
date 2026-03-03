@@ -35,9 +35,9 @@ npm run preview  # Preview production build
 ### Controls (`src/systems/controls.js`)
 - **W/S** — forward/backward, **A/D** — turn left/right, **Q/E** — strafe
 - **Space** — jump, **Shift** — sprint
-- **C** — mount/dismount (worm, dirt bike)
-- **F** — grab (rope swings)
-- **G** — toggle golf mode, **H** — swing club
+- **C** — mount/dismount (worm, dirt bike, car smash, batting cage)
+- **F** — grab (rope swings), pick up basketball
+- **G** — toggle golf mode, **H** — swing (golf club, car smash hammer, batting cage bat)
 - **1/2** — switch between player characters
 
 ### Player Controller (`src/components/Player/Player.jsx`)
@@ -52,7 +52,7 @@ This is the most complex and sensitive file. It handles:
 - **Jump buffering** — pre-landing jump inputs are queued and executed on ground contact
 - **Air control** — reduced movement multiplier while airborne
 - Auto-respawn when falling below `PLAYER.RESPAWN_Y`
-- Mount/dismount for worm and dirt bike via proximity checks
+- Mount/dismount for worm, dirt bike, car smash, and batting cage via proximity checks
 
 When modifying the player controller, be careful with:
 - The `useFrame` loop runs every frame; avoid allocations inside it (reuse the module-level temp vectors like `_direction`)
@@ -62,7 +62,9 @@ When modifying the player controller, be careful with:
 ### Vehicles & Mounts
 - **Dirt Bike** (`src/components/Level/DirtBike.jsx`) — kinematicPosition body, raycast ground-following, ramp launching, terrain friction detection (ice/water/mud/sand modify speed, decel, and turning)
 - **Giant Worm** (`src/components/Level/Worm.jsx`) — multi-segment kinematic body, player rides the head segment
-- Both use proximity-based mounting (C key) and store mount state in Zustand
+- **Car Smash** (`src/components/Level/CarSmash.jsx`) — destructible car panels with hammer swing, damage + detach system, debris particles
+- **Batting Cage** (`src/components/Level/BattingCage.jsx`) — automatic pitching machine, bat swing with timing-based hit detection, ball pool of pre-allocated RigidBodies
+- All use proximity-based mounting (C key) and store mount state in Zustand
 
 ### Level: Sandbox (`src/components/Level/Sandbox.jsx`)
 The main playground level containing:
@@ -72,6 +74,10 @@ The main playground level containing:
 - **Ice Rink** — near-zero friction surfaces with sliding crates and pucks
 - **Rope Swings** — 3 swingable ropes with grab mechanics
 - **Golf** — club + ball system
+- **Aquarium** — large glass tank with fish
+- **Car Smash** — destructible car with hammer swing
+- **Basketball** — court with hoop and throwable ball
+- **Batting Cage** — pitching machine with timing-based bat swing
 
 ### Dirt Track Terrain System
 Terrain zones are higher-y patches (y=0.08) on the track so the bike's downward raycast hits them instead of the track below. Each has a different `friction` value on its `RigidBody`:
@@ -87,10 +93,10 @@ All shared game state lives in **Zustand** (`src/systems/gameStore.js`). Access 
 - Inside `useFrame` or non-React code: `useGameStore.getState().field` (no subscription, no re-render)
 - Never call `useGameStore()` without a selector in render paths — it causes re-renders on every state change
 
-Key state groups: player position/yaw, player2 state, mount states (worm, bike), rope grabs, golf mode, debug flags.
+Key state groups: player position/yaw, player2 state, mount states (worm, bike, car smash, batting cage), rope grabs, golf mode, basketball, debug flags.
 
 ### Constants & Tuning (`src/systems/constants.js`)
-All gameplay-affecting numbers (speeds, forces, distances, sizes) are centralized here. Includes `PLAYER`, `HUMAN_PLAYER`, `CAMERA`, `ROPE`, `GOLF`, `WORM`, `DIRT_BIKE`, and `WORLD` config objects. When adding new mechanics, define tunable values as named constants in this file rather than hardcoding in components.
+All gameplay-affecting numbers (speeds, forces, distances, sizes) are centralized here. Includes `PLAYER`, `HUMAN_PLAYER`, `CAMERA`, `ROPE`, `GOLF`, `WORM`, `DIRT_BIKE`, `AQUARIUM`, `CAR_SMASH`, `BASKETBALL`, `BATTING`, and `WORLD` config objects. When adding new mechanics, define tunable values as named constants in this file rather than hardcoding in components.
 
 ### Level Design Pattern
 Levels are React components that compose `<Platform>` and `<RigidBody>` elements. The `Platform` component (`src/components/Level/Platform.jsx`) is the reusable building block — it wraps a box mesh + fixed RigidBody + optional label.
@@ -113,7 +119,7 @@ To create a new level:
 The `FollowCamera` runs in `useFrame` and lerps toward an offset position behind/above the active entity (player, worm, or bike depending on mount state). It reads position and yaw from the Zustand store via `getState()` (not via React subscription) to avoid render overhead. The camera offset is rotated by the entity's yaw so it always orbits behind the facing direction.
 
 ### HUD (`src/components/UI/HUD.jsx`)
-Overlay showing context-sensitive info: speed when on bike, mount prompts when near vehicles, golf power meter, rope grab hints.
+Overlay showing context-sensitive info: speed when on bike, mount prompts when near vehicles/stations, golf power meter, basketball power meter, rope grab hints, batting cage prompts.
 
 ## Code Style & Conventions
 

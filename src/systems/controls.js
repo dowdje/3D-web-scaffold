@@ -13,6 +13,7 @@ export const Controls = {
   golfMode: 'golfMode',
   swing: 'swing',
   mount: 'mount',
+  reset: 'reset',
 }
 
 export const CONTROLS_MAP = [
@@ -30,4 +31,5 @@ export const CONTROLS_MAP = [
   { name: Controls.golfMode, keys: ['KeyG'] },
   { name: Controls.swing, keys: ['KeyH'] },
   { name: Controls.mount, keys: ['KeyC'] },
+  { name: Controls.reset, keys: ['KeyR'] },
 ]

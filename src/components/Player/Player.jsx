@@ -5,7 +5,7 @@ import { RigidBody, CapsuleCollider, useRapier } from '@react-three/rapier'
 import * as THREE from 'three'
 
 import { Controls } from '../../systems/controls'
-import { PLAYER, ROPE, GOLF, WORM, DIRT_BIKE } from '../../systems/constants'
+import { PLAYER, ROPE, GOLF, WORM, DIRT_BIKE, CAR_SMASH, BASKETBALL, BATTING } from '../../systems/constants'
 import { useGameStore } from '../../systems/gameStore'
 import { PlayerModel } from './PlayerModel'
 import { GolfBall } from './GolfBall'
@@ -47,6 +47,14 @@ export function Player({
   // Dirt bike mount state
   const mountedBike = useRef(false)
 
+  // Car smash state
+  const mountedCarSmash = useRef(false)
+  const carSmashSwingCooldown = useRef(0)
+
+  // Batting cage state
+  const mountedBatting = useRef(false)
+  const battingSwingCooldown = useRef(0)
+
   // Golf state
   const golfActive = useRef(false)
   const golfPower = useRef(0)
@@ -55,6 +63,11 @@ export function Player({
   const golfSavedPos = useRef({ x: 0, y: 0, z: 0 })
   const golfBallRef = useRef(null)
   const [golfBalls, setGolfBalls] = useState([])
+
+  // Basketball state
+  const holdingBall = useRef(false)
+  const ballPower = useRef(0)
+  const ballShootKeyWasDown = useRef(false)
 
   // Ground surface friction (detected via raycast)
   const surfaceFriction = useRef(1)
@@ -265,14 +278,47 @@ export function Player({
             rb.setTranslation({ x: bikePos.x + 2, y: bikePos.y + 1, z: bikePos.z }, true)
             rb.setLinvel({ x: 0, y: 2, z: 0 }, true)
           }
+        } else if (mountedCarSmash.current) {
+          // Dismount car smash
+          mountedCarSmash.current = false
+          useGameStore.getState().setCarSmashMounted(false)
+          const csRef = useGameStore.getState().carSmashRef
+          if (csRef?.current) {
+            const csPos = csRef.current.position
+            rb.setTranslation({ x: csPos.x + CAR_SMASH.ORBIT_RADIUS + 1, y: csPos.y + 1, z: csPos.z }, true)
+            rb.setLinvel({ x: 0, y: 2, z: 0 }, true)
+          }
+        } else if (mountedBatting.current) {
+          // Dismount batting cage
+          mountedBatting.current = false
+          useGameStore.getState().setBattingMounted(false)
+          const batRef = useGameStore.getState().battingRef
+          if (batRef?.current) {
+            const batPos = batRef.current.position
+            rb.setTranslation({ x: batPos.x + BATTING.CAGE_WIDTH / 2 + 1, y: batPos.y + 1, z: batPos.z + BATTING.BATTER_OFFSET_Z }, true)
+            rb.setLinvel({ x: 0, y: 2, z: 0 }, true)
+          }
         } else if (useGameStore.getState().nearWorm) {
-          // Mount worm
+          // Mount worm — auto-drop basketball
+          if (holdingBall.current) { holdingBall.current = false; useGameStore.getState().setBasketballHeld(false); ballPower.current = 0; useGameStore.getState().setBasketballPower(0) }
           mountedWorm.current = true
           useGameStore.getState().setWormMounted(true)
         } else if (useGameStore.getState().nearBike) {
-          // Mount bike
+          // Mount bike — auto-drop basketball
+          if (holdingBall.current) { holdingBall.current = false; useGameStore.getState().setBasketballHeld(false); ballPower.current = 0; useGameStore.getState().setBasketballPower(0) }
           mountedBike.current = true
           useGameStore.getState().setBikeMounted(true)
+        } else if (useGameStore.getState().nearCarSmash) {
+          // Mount car smash — auto-drop basketball
+          if (holdingBall.current) { holdingBall.current = false; useGameStore.getState().setBasketballHeld(false); ballPower.current = 0; useGameStore.getState().setBasketballPower(0) }
+          mountedCarSmash.current = true
+          useGameStore.getState().setCarSmashMounted(true)
+          useGameStore.getState().setCarSmashYaw(yawRef.current)
+        } else if (useGameStore.getState().nearBatting) {
+          // Mount batting cage — auto-drop basketball
+          if (holdingBall.current) { holdingBall.current = false; useGameStore.getState().setBasketballHeld(false); ballPower.current = 0; useGameStore.getState().setBasketballPower(0) }
+          mountedBatting.current = true
+          useGameStore.getState().setBattingMounted(true)
         }
       }
 
@@ -309,6 +355,85 @@ export function Player({
         setPosition([updatedPos.x, updatedPos.y, updatedPos.z])
         setYaw(bikeYaw)
         if (modelRef.current) modelRef.current.rotation.y = bikeYaw
+        return
+      }
+
+      // While mounted on car smash — lock player to orbit around car, A/D aim, H swing, R reset
+      if (mountedCarSmash.current) {
+        const csRef = useGameStore.getState().carSmashRef
+        if (csRef?.current) {
+          const csPos = csRef.current.position
+          // A/D orbit
+          let csYaw = useGameStore.getState().carSmashYaw
+          if (left) csYaw += config.TURN_SPEED * delta
+          if (right) csYaw -= config.TURN_SPEED * delta
+          useGameStore.getState().setCarSmashYaw(csYaw)
+          yawRef.current = csYaw
+
+          // Lock position to orbit
+          const orbitX = csPos.x + Math.sin(csYaw) * CAR_SMASH.ORBIT_RADIUS
+          const orbitZ = csPos.z + Math.cos(csYaw) * CAR_SMASH.ORBIT_RADIUS
+          const orbitY = csPos.y + CAR_SMASH.ORBIT_HEIGHT
+          rb.setTranslation({ x: orbitX, y: orbitY, z: orbitZ }, true)
+          rb.setLinvel({ x: 0, y: 0, z: 0 }, true)
+
+          // Swing cooldown
+          if (carSmashSwingCooldown.current > 0) {
+            carSmashSwingCooldown.current -= delta
+          }
+
+          // H to swing
+          const { swing: swingKey, reset: resetKey } = getKeys()
+          if (swingKey && carSmashSwingCooldown.current <= 0) {
+            useGameStore.getState().setCarSmashSwing(true)
+            carSmashSwingCooldown.current = CAR_SMASH.SWING_COOLDOWN
+          }
+
+          // R to reset
+          if (resetKey) {
+            useGameStore.getState().setCarSmashReset(true)
+          }
+        }
+        const updatedPos = rb.translation()
+        setPosition([updatedPos.x, updatedPos.y, updatedPos.z])
+        setYaw(yawRef.current)
+        if (modelRef.current) modelRef.current.rotation.y = yawRef.current
+        return
+      }
+
+      // While mounted on batting cage — lock player at plate, face pitcher, H to swing
+      if (mountedBatting.current) {
+        const batRef = useGameStore.getState().battingRef
+        if (batRef?.current) {
+          const batPos = batRef.current.position
+          // Lock at batter position
+          rb.setTranslation({
+            x: batPos.x,
+            y: batPos.y + config.CAPSULE_HALF_HEIGHT + config.CAPSULE_RADIUS,
+            z: batPos.z + BATTING.BATTER_OFFSET_Z,
+          }, true)
+          rb.setLinvel({ x: 0, y: 0, z: 0 }, true)
+        }
+
+        // Force yaw to face pitcher (-Z direction)
+        yawRef.current = BATTING.BATTER_FACING_YAW
+
+        // Swing cooldown
+        if (battingSwingCooldown.current > 0) {
+          battingSwingCooldown.current -= delta
+        }
+
+        // H to swing
+        const { swing: swingKey } = getKeys()
+        if (swingKey && battingSwingCooldown.current <= 0) {
+          useGameStore.getState().setBattingSwing(true)
+          battingSwingCooldown.current = BATTING.SWING_COOLDOWN
+        }
+
+        const updatedPos = rb.translation()
+        setPosition([updatedPos.x, updatedPos.y, updatedPos.z])
+        setYaw(yawRef.current)
+        if (modelRef.current) modelRef.current.rotation.y = yawRef.current
         return
       }
 
@@ -351,14 +476,32 @@ export function Player({
         // Skip normal movement while in golf mode
       } else {
 
-      // --- Rope grab/release (checked first so grab overrides normal movement) ---
+      // --- Rope grab/release + Basketball pickup (F key) ---
       const grabDown = !!grab
       const grabPressed = grabDown && !grabKeyWasDown.current
       grabKeyWasDown.current = grabDown
 
-      // F to grab (only when not already grabbing)
-      if (grabPressed && !grabbedRope.current) {
-        tryGrab()
+      if (grabPressed) {
+        if (holdingBall.current) {
+          // Drop basketball
+          holdingBall.current = false
+          useGameStore.getState().setBasketballHeld(false)
+          ballPower.current = 0
+          ballShootKeyWasDown.current = false
+          useGameStore.getState().setBasketballPower(0)
+        } else if (!grabbedRope.current && useGameStore.getState().nearBasketball) {
+          // Pick up basketball
+          const bRef = useGameStore.getState().basketballRef
+          if (bRef?.current) {
+            holdingBall.current = true
+            useGameStore.getState().setBasketballHeld(true)
+            bRef.current.setLinvel({ x: 0, y: 0, z: 0 }, true)
+            bRef.current.setAngvel({ x: 0, y: 0, z: 0 }, true)
+          }
+        } else if (!grabbedRope.current) {
+          // Try rope grab
+          tryGrab()
+        }
       }
 
       // Space to release (launches player with handle velocity)
@@ -394,6 +537,51 @@ export function Player({
         // Skip movement on the frame we released — velocity was already set by releaseGrab
         justReleasedRope.current = false
       } else {
+        // --- Basketball carry + shoot (while holding, player still moves normally) ---
+        if (holdingBall.current) {
+          const bRef = useGameStore.getState().basketballRef
+          if (bRef?.current) {
+            // Position ball in front of player
+            const fwdX = -Math.sin(yawRef.current)
+            const fwdZ = -Math.cos(yawRef.current)
+            bRef.current.setTranslation({
+              x: position.x + fwdX * BASKETBALL.HOLD_OFFSET_FORWARD,
+              y: position.y + BASKETBALL.HOLD_OFFSET_Y,
+              z: position.z + fwdZ * BASKETBALL.HOLD_OFFSET_FORWARD,
+            }, true)
+            bRef.current.setLinvel({ x: 0, y: 0, z: 0 }, true)
+            bRef.current.setAngvel({ x: 0, y: 0, z: 0 }, true)
+
+            // H key charge/shoot
+            const shootDown = !!swingKey
+            if (shootDown) {
+              ballPower.current += delta / BASKETBALL.CHARGE_TIME
+              if (ballPower.current >= 1) {
+                ballPower.current = 0
+              }
+              ballShootKeyWasDown.current = true
+              useGameStore.getState().setBasketballPower(ballPower.current)
+            } else if (ballShootKeyWasDown.current) {
+              // Released H — shoot the ball
+              const power = ballPower.current
+              const force = BASKETBALL.MIN_FORCE + power * (BASKETBALL.MAX_FORCE - BASKETBALL.MIN_FORCE)
+              const cosAngle = Math.cos(BASKETBALL.LAUNCH_ANGLE)
+              const sinAngle = Math.sin(BASKETBALL.LAUNCH_ANGLE)
+              const yaw = yawRef.current
+              bRef.current.setLinvel({
+                x: -Math.sin(yaw) * cosAngle * force / BASKETBALL.BALL_MASS,
+                y: sinAngle * force / BASKETBALL.BALL_MASS,
+                z: -Math.cos(yaw) * cosAngle * force / BASKETBALL.BALL_MASS,
+              }, true)
+              holdingBall.current = false
+              ballPower.current = 0
+              ballShootKeyWasDown.current = false
+              useGameStore.getState().setBasketballHeld(false)
+              useGameStore.getState().setBasketballPower(0)
+            }
+          }
+        }
+
         // --- Normal ground/air movement ---
 
         // Jump buffer
@@ -547,6 +735,53 @@ export function Player({
         }
       }
       useGameStore.getState().setNearBike(isNearBike)
+
+      // Update nearCarSmash in store for HUD prompt
+      const carSmashRef = useGameStore.getState().carSmashRef
+      let isNearCarSmash = false
+      if (carSmashRef?.current && !mountedCarSmash.current) {
+        const csPos = carSmashRef.current.position
+        const cdx = csPos.x - position.x
+        const cdy = csPos.y - position.y
+        const cdz = csPos.z - position.z
+        const cDist = Math.sqrt(cdx * cdx + cdy * cdy + cdz * cdz)
+        if (cDist < CAR_SMASH.INTERACT_DISTANCE) {
+          isNearCarSmash = true
+        }
+      }
+      useGameStore.getState().setNearCarSmash(isNearCarSmash)
+
+      // Update nearBatting in store for HUD prompt
+      const battingRef = useGameStore.getState().battingRef
+      let isNearBatting = false
+      if (battingRef?.current && !mountedBatting.current) {
+        const batPos = battingRef.current.position
+        // Check distance to batter's box entry
+        const entryX = batPos.x
+        const entryZ = batPos.z + BATTING.BATTER_OFFSET_Z
+        const btdx = entryX - position.x
+        const btdz = entryZ - position.z
+        const btDist = Math.sqrt(btdx * btdx + btdz * btdz)
+        if (btDist < BATTING.INTERACT_DISTANCE) {
+          isNearBatting = true
+        }
+      }
+      useGameStore.getState().setNearBatting(isNearBatting)
+
+      // Update nearBasketball in store for HUD prompt
+      const bbRef = useGameStore.getState().basketballRef
+      let isNearBball = false
+      if (bbRef?.current && !holdingBall.current) {
+        const ballPos = bbRef.current.translation()
+        const bbdx = ballPos.x - position.x
+        const bbdy = ballPos.y - position.y
+        const bbdz = ballPos.z - position.z
+        const bbDist = Math.sqrt(bbdx * bbdx + bbdy * bbdy + bbdz * bbdz)
+        if (bbDist < BASKETBALL.PICKUP_DISTANCE) {
+          isNearBball = true
+        }
+      }
+      useGameStore.getState().setNearBasketball(isNearBball)
     }
 
     // Clamp fall speed

@@ -108,6 +108,96 @@ export const DIRT_BIKE = {
   WHEEL_RADIUS: 0.4,
 }
 
+// Aquarium
+export const AQUARIUM = {
+  POSITION: [-18, 0, 8],
+  TANK_WIDTH: 16,
+  TANK_HEIGHT: 8,
+  TANK_DEPTH: 12,
+  WALL_THICKNESS: 0.3,
+  GLASS_OPACITY: 0.25,
+  GLASS_COLOR: '#88ccee',
+  WATER_COLOR: '#1a6b8a',
+  WATER_OPACITY: 0.35,
+  FISH_TURN_SPEED: 2.0,
+  FISH_MARGIN: 1.5,
+}
+
+// Car Smash
+export const CAR_SMASH = {
+  POSITION: [15, 0, -8],
+  INTERACT_DISTANCE: 4.0,
+  ORBIT_RADIUS: 3.5,
+  ORBIT_HEIGHT: 1.0,
+  SWING_COOLDOWN: 0.6,
+  DAMAGE_PER_HIT: 0.3,
+  MAX_DENT_OFFSET: 0.5,
+  MAX_DENT_ROTATION: 0.4,
+  DETACH_THRESHOLD: 0.85,     // Damage level at which panel flies off
+  DETACH_FORCE: 8,             // Base launch speed for detached panels
+  DETACH_SPIN: 12,             // Angular velocity for flying panels
+  DEBRIS_COUNT: 6,             // Sparks/chunks spawned per hit
+  DEBRIS_SPEED: 5,
+  DEBRIS_LIFETIME: 1.5,
+  // Hammer swing phases (seconds)
+  SWING_WINDUP: 0.25,
+  SWING_STRIKE: 0.08,
+  SWING_IMPACT_HOLD: 0.06,
+  SWING_RECOIL: 0.2,
+}
+
+// Basketball
+export const BASKETBALL = {
+  COURT_POSITION: [30, 0, 8],
+  HOOP_OFFSET_Z: -6,
+  HOOP_HEIGHT: 3.05,
+  BACKBOARD_WIDTH: 1.8,
+  BACKBOARD_HEIGHT: 1.05,
+  BALL_RADIUS: 0.12,
+  BALL_MASS: 0.62,
+  CHARGE_TIME: 2.0,
+  MAX_FORCE: 18.0,
+  MIN_FORCE: 3.0,
+  LAUNCH_ANGLE: 0.7,        // ~40 degrees
+  PICKUP_DISTANCE: 2.0,
+  BALL_RESTITUTION: 0.7,
+  BALL_SPAWN: [30, 1, 8],   // initial ball position
+  HOLD_OFFSET_Y: 0.8,       // ball height relative to player center
+  HOLD_OFFSET_FORWARD: 0.6, // ball distance in front of player
+}
+
+// Batting Cage
+export const BATTING = {
+  POSITION: [-50, 0, 15],
+  CAGE_LENGTH: 18,
+  CAGE_WIDTH: 6,
+  CAGE_HEIGHT: 5,
+  INTERACT_DISTANCE: 5.0,
+  BATTER_OFFSET_Z: 7,
+  BATTER_FACING_YAW: 0,
+  PITCHER_OFFSET_Z: -7,
+  PITCH_INTERVAL: 3.5,
+  PITCH_SPEED: 18,
+  PITCH_HEIGHT: 1.2,
+  PITCH_VARIATION_X: 0.3,
+  PITCH_VARIATION_Y: 0.2,
+  BALL_RADIUS: 0.05,
+  BALL_MASS: 0.145,
+  BAT_LENGTH: 1.0,
+  SWING_DURATION: 0.35,
+  SWING_WINDUP: 0.08,
+  SWING_STRIKE_START: 0.08,
+  SWING_STRIKE_END: 0.28,
+  SWING_COOLDOWN: 0.5,
+  HIT_DISTANCE: 0.8,
+  HIT_BASE_SPEED: 25,
+  HIT_MAX_SPEED: 40,
+  HIT_LAUNCH_ANGLE: 0.4,
+  MAX_BALLS: 8,
+  BALL_LIFETIME: 8,
+  BALL_CLEANUP_DISTANCE: 60,
+}
+
 // World
 export const WORLD = {
   GROUND_SIZE: [200, 1, 200],

@@ -19,6 +19,13 @@ export function HUD() {
   const nearBike = useGameStore((s) => s.nearBike)
   const bikeMounted = useGameStore((s) => s.bikeMounted)
   const bikeSpeed = useGameStore((s) => s.bikeSpeed)
+  const nearCarSmash = useGameStore((s) => s.nearCarSmash)
+  const carSmashMounted = useGameStore((s) => s.carSmashMounted)
+  const nearBasketball = useGameStore((s) => s.nearBasketball)
+  const basketballHeld = useGameStore((s) => s.basketballHeld)
+  const basketballPower = useGameStore((s) => s.basketballPower)
+  const nearBatting = useGameStore((s) => s.nearBatting)
+  const battingMounted = useGameStore((s) => s.battingMounted)
 
   return (
     <div
@@ -78,6 +85,16 @@ export function HUD() {
           </div>
         </div>
       )}
+      {nearCarSmash && !carSmashMounted && (
+        <div style={{ marginTop: 4, color: '#FF4444' }}>C — enter car smash</div>
+      )}
+      {carSmashMounted && (
+        <div style={{ marginTop: 4 }}>
+          <div style={{ color: '#FF4444', fontWeight: 'bold', marginBottom: 4 }}>Car Smash</div>
+          <div style={{ color: '#FF4444' }}>H — swing | A/D — aim</div>
+          <div style={{ color: '#FF4444' }}>R — reset | C — exit</div>
+        </div>
+      )}
       {golfMode && (
         <div style={{ marginTop: 8 }}>
           <div style={{ color: '#90EE90', fontWeight: 'bold', marginBottom: 4 }}>Golf Mode</div>
@@ -99,6 +116,41 @@ export function HUD() {
           </div>
           <div style={{ color: '#DAA520' }}>H — hold to charge, release to swing</div>
           <div style={{ color: '#DAA520' }}>A/D — aim</div>
+        </div>
+      )}
+      {nearBasketball && !basketballHeld && (
+        <div style={{ marginTop: 4, color: '#FF6600' }}>F — pick up ball</div>
+      )}
+      {basketballHeld && (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ color: '#FF6600', fontWeight: 'bold', marginBottom: 4 }}>Basketball</div>
+          <div style={{
+            width: 120,
+            height: 10,
+            background: 'rgba(255,255,255,0.2)',
+            borderRadius: 3,
+            overflow: 'hidden',
+            marginBottom: 4,
+          }}>
+            <div style={{
+              width: `${basketballPower * 100}%`,
+              height: '100%',
+              background: basketballPower < 0.5 ? '#4CAF50' : basketballPower < 0.8 ? '#FF9800' : '#F44336',
+              borderRadius: 3,
+              transition: 'width 0.05s linear',
+            }} />
+          </div>
+          <div style={{ color: '#FF6600' }}>H — charge & shoot</div>
+          <div style={{ color: '#FF6600' }}>F — drop</div>
+        </div>
+      )}
+      {nearBatting && !battingMounted && (
+        <div style={{ marginTop: 4, color: '#ffaa00' }}>C — step up to bat</div>
+      )}
+      {battingMounted && (
+        <div style={{ marginTop: 4 }}>
+          <div style={{ color: '#ffaa00', fontWeight: 'bold', marginBottom: 4 }}>Batting Cage</div>
+          <div style={{ color: '#ffaa00' }}>H — swing bat | C — exit</div>
         </div>
       )}
     </div>

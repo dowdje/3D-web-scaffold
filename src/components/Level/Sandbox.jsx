@@ -4,6 +4,10 @@ import { Platform } from './Platform'
 import { RopeSwing } from './RopeSwing'
 import { Worm } from './Worm'
 import { DirtBike } from './DirtBike'
+import { Aquarium } from './Aquarium'
+import { CarSmash } from './CarSmash'
+import { Basketball } from './Basketball'
+import { BattingCage } from './BattingCage'
 import { Text } from '@react-three/drei'
 
 /**
@@ -46,6 +50,18 @@ export function Sandbox() {
 
       {/* === ICE RINK === */}
       <IceRink position={[-25, 0, -25]} />
+
+      {/* === AQUARIUM === */}
+      <Aquarium />
+
+      {/* === CAR SMASH === */}
+      <CarSmash />
+
+      {/* === BASKETBALL === */}
+      <Basketball />
+
+      {/* === BATTING CAGE === */}
+      <BattingCage />
     </group>
   )
 }

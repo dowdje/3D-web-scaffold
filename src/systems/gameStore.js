@@ -85,6 +85,42 @@ export const useGameStore = create((set, get) => ({
   bikeSpeed: 0,
   setBikeSpeed: (v) => set({ bikeSpeed: v }),
 
+  // --- Car Smash ---
+  carSmashMounted: false,
+  setCarSmashMounted: (v) => set({ carSmashMounted: v }),
+  carSmashRef: null,
+  setCarSmashRef: (ref) => set({ carSmashRef: ref }),
+  nearCarSmash: false,
+  setNearCarSmash: (v) => set({ nearCarSmash: v }),
+  carSmashYaw: 0,
+  setCarSmashYaw: (yaw) => set({ carSmashYaw: yaw }),
+  carSmashSwing: false,
+  setCarSmashSwing: (v) => set({ carSmashSwing: v }),
+  carSmashImpact: false,
+  setCarSmashImpact: (v) => set({ carSmashImpact: v }),
+  carSmashReset: false,
+  setCarSmashReset: (v) => set({ carSmashReset: v }),
+
+  // --- Basketball ---
+  basketballHeld: false,
+  setBasketballHeld: (v) => set({ basketballHeld: v }),
+  basketballPower: 0,
+  setBasketballPower: (v) => set({ basketballPower: v }),
+  nearBasketball: false,
+  setNearBasketball: (v) => set({ nearBasketball: v }),
+  basketballRef: null,
+  setBasketballRef: (ref) => set({ basketballRef: ref }),
+
+  // --- Batting Cage ---
+  battingMounted: false,
+  setBattingMounted: (v) => set({ battingMounted: v }),
+  nearBatting: false,
+  setNearBatting: (v) => set({ nearBatting: v }),
+  battingRef: null,
+  setBattingRef: (ref) => set({ battingRef: ref }),
+  battingSwing: false,
+  setBattingSwing: (v) => set({ battingSwing: v }),
+
   // --- Respawn ---
   respawnPoint: [0, 5, 0],
   setRespawnPoint: (point) => set({ respawnPoint: point }),
