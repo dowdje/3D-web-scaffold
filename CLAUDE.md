@@ -78,6 +78,7 @@ The main playground level containing:
 - **Car Smash** — destructible car with hammer swing
 - **Basketball** — court with hoop and throwable ball
 - **Batting Cage** — pitching machine with timing-based bat swing
+- **Tube Men** — two wacky waving inflatable tube men (decorative, wind physics)
 
 ### Dirt Track Terrain System
 Terrain zones are higher-y patches (y=0.08) on the track so the bike's downward raycast hits them instead of the track below. Each has a different `friction` value on its `RigidBody`:
@@ -96,7 +97,7 @@ All shared game state lives in **Zustand** (`src/systems/gameStore.js`). Access 
 Key state groups: player position/yaw, player2 state, mount states (worm, bike, car smash, batting cage), rope grabs, golf mode, basketball, debug flags.
 
 ### Constants & Tuning (`src/systems/constants.js`)
-All gameplay-affecting numbers (speeds, forces, distances, sizes) are centralized here. Includes `PLAYER`, `HUMAN_PLAYER`, `CAMERA`, `ROPE`, `GOLF`, `WORM`, `DIRT_BIKE`, `AQUARIUM`, `CAR_SMASH`, `BASKETBALL`, `BATTING`, and `WORLD` config objects. When adding new mechanics, define tunable values as named constants in this file rather than hardcoding in components.
+All gameplay-affecting numbers (speeds, forces, distances, sizes) are centralized here. Includes `PLAYER`, `HUMAN_PLAYER`, `CAMERA`, `ROPE`, `GOLF`, `WORM`, `DIRT_BIKE`, `AQUARIUM`, `CAR_SMASH`, `BASKETBALL`, `BATTING`, `TUBE_MAN`, and `WORLD` config objects. When adding new mechanics, define tunable values as named constants in this file rather than hardcoding in components.
 
 ### Level Design Pattern
 Levels are React components that compose `<Platform>` and `<RigidBody>` elements. The `Platform` component (`src/components/Level/Platform.jsx`) is the reusable building block — it wraps a box mesh + fixed RigidBody + optional label.

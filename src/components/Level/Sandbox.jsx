@@ -8,6 +8,7 @@ import { Aquarium } from './Aquarium'
 import { CarSmash } from './CarSmash'
 import { Basketball } from './Basketball'
 import { BattingCage } from './BattingCage'
+import { TubeMan } from './TubeMan'
 import { Text } from '@react-three/drei'
 
 /**
@@ -62,6 +63,10 @@ export function Sandbox() {
 
       {/* === BATTING CAGE === */}
       <BattingCage />
+
+      {/* === TUBE MEN === */}
+      <TubeMan position={[-40, 0, 20]} color="#ff2222" />
+      <TubeMan position={[-37, 0, 20]} color="#22cc44" />
     </group>
   )
 }

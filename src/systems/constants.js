@@ -174,7 +174,8 @@ export const BATTING = {
   CAGE_HEIGHT: 5,
   INTERACT_DISTANCE: 5.0,
   BATTER_OFFSET_Z: 7,
-  BATTER_FACING_YAW: 0,
+  BATTER_OFFSET_X: 0.8,            // stands beside the pitch line, not on it
+  BATTER_FACING_YAW: Math.PI / 2,  // perpendicular to pitch — faces -X across plate
   PITCHER_OFFSET_Z: -7,
   PITCH_INTERVAL: 3.5,
   PITCH_SPEED: 18,
@@ -196,6 +197,27 @@ export const BATTING = {
   MAX_BALLS: 8,
   BALL_LIFETIME: 8,
   BALL_CLEANUP_DISTANCE: 60,
+}
+
+// Tube Man (wacky waving inflatable)
+export const TUBE_MAN = {
+  SEGMENT_COUNT: 7,
+  SEGMENT_HEIGHT: 0.6,
+  BASE_RADIUS: 0.35,
+  TOP_RADIUS: 0.15,
+  HEAD_RADIUS: 0.25,
+  ARM_SEGMENTS: 3,
+  ARM_SEGMENT_LENGTH: 0.4,
+  ARM_RADIUS: 0.08,
+  ARM_ATTACH_SEGMENT: 5,
+  GRAVITY_SCALE: 0.3,
+  ARM_GRAVITY_SCALE: 0.15,
+  LINEAR_DAMPING: 3.0,
+  ANGULAR_DAMPING: 2.0,
+  WIND_BASE_FORCE: 0.08,
+  WIND_GUST_FORCE: 0.04,
+  WIND_HEIGHT_MULT: 1.5,
+  MASS_PER_SEGMENT: 0.3,
 }
 
 // World
