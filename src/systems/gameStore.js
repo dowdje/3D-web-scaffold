@@ -120,6 +120,8 @@ export const useGameStore = create((set, get) => ({
   setBattingRef: (ref) => set({ battingRef: ref }),
   battingSwing: false,
   setBattingSwing: (v) => set({ battingSwing: v }),
+  battingLastHitDist: 0,
+  setBattingLastHitDist: (v) => set({ battingLastHitDist: v }),
 
   // --- Respawn ---
   respawnPoint: [0, 5, 0],

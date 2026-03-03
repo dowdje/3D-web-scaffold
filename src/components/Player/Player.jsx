@@ -406,9 +406,9 @@ export function Player({
         const batRef = useGameStore.getState().battingRef
         if (batRef?.current) {
           const batPos = batRef.current.position
-          // Lock at batter position
+          // Lock at batter position (offset to side of pitch line)
           rb.setTranslation({
-            x: batPos.x,
+            x: batPos.x + BATTING.BATTER_OFFSET_X,
             y: batPos.y + config.CAPSULE_HALF_HEIGHT + config.CAPSULE_RADIUS,
             z: batPos.z + BATTING.BATTER_OFFSET_Z,
           }, true)

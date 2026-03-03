@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react'
+import React, { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { RigidBody } from '@react-three/rapier'
 import { Text } from '@react-three/drei'
@@ -9,7 +9,6 @@ import { useGameStore } from '../../systems/gameStore'
 // Temp vectors reused each frame
 const _batHead = new THREE.Vector3()
 const _ballPos = new THREE.Vector3()
-const _hitDir = new THREE.Vector3()
 
 // Swing phases
 const PHASE_IDLE = 0
@@ -19,38 +18,37 @@ const PHASE_FOLLOW = 3
 
 /**
  * Batting Cage — automatic pitching machine + bat swing + hit detection.
+ * Open-air design (no walls/ceiling) so hit balls can fly full distance.
  */
 export function BattingCage({ position = BATTING.POSITION }) {
   const groupRef = useRef()
 
-  // Register ref in store
   React.useEffect(() => {
     useGameStore.getState().setBattingRef(groupRef)
     return () => useGameStore.getState().setBattingRef(null)
   }, [])
 
-  // Shared ball pool state — array of { active, timer, hit }
+  // Shared ball pool state: { active, timer, hit, hitOrigin:[x,y,z], landed }
   const ballPool = useRef([])
   const ballRefs = useRef([])
 
-  // Initialize ball pool refs
   if (ballRefs.current.length === 0) {
     for (let i = 0; i < BATTING.MAX_BALLS; i++) {
       ballRefs.current.push(React.createRef())
-      ballPool.current.push({ active: false, timer: 0, hit: false })
+      ballPool.current.push({ active: false, timer: 0, hit: false, hitOrigin: null, landed: false, maxDist: 0 })
     }
   }
 
   return (
     <group ref={groupRef} position={position}>
       <CageFrame />
-      <PitchingMachine ballPool={ballPool} ballRefs={ballRefs} />
-      <Bat ballPool={ballPool} ballRefs={ballRefs} />
-      <BallPool ballRefs={ballRefs} ballPool={ballPool} />
+      <PitchingMachine ballPool={ballPool} ballRefs={ballRefs} cagePos={position} />
+      <Bat ballPool={ballPool} ballRefs={ballRefs} cagePos={position} />
+      <BallPool ballRefs={ballRefs} ballPool={ballPool} cagePos={position} />
 
       {/* Sign */}
       <Text
-        position={[0, BATTING.CAGE_HEIGHT + 0.5, BATTING.CAGE_LENGTH / 2]}
+        position={[0, 4, BATTING.CAGE_LENGTH / 2]}
         fontSize={0.8}
         color="#ffaa00"
         anchorX="center"
@@ -59,7 +57,7 @@ export function BattingCage({ position = BATTING.POSITION }) {
         {'BATTING CAGE'}
       </Text>
       <Text
-        position={[0, BATTING.CAGE_HEIGHT - 0.2, BATTING.CAGE_LENGTH / 2]}
+        position={[0, 3.2, BATTING.CAGE_LENGTH / 2]}
         fontSize={0.35}
         color="#ffcc44"
         anchorX="center"
@@ -72,16 +70,15 @@ export function BattingCage({ position = BATTING.POSITION }) {
 }
 
 /**
- * CageFrame — posts + semi-transparent net panels forming the cage enclosure.
+ * CageFrame — open-air: just the floor, plate markings, and corner posts.
+ * No walls or ceiling so hit balls fly free.
  */
 function CageFrame() {
   const W = BATTING.CAGE_WIDTH
   const L = BATTING.CAGE_LENGTH
-  const H = BATTING.CAGE_HEIGHT
   const postRadius = 0.08
-  const netOpacity = 0.15
+  const postHeight = 3
 
-  // Corner positions for posts
   const corners = [
     [-W / 2, 0, -L / 2],
     [W / 2, 0, -L / 2],
@@ -91,63 +88,15 @@ function CageFrame() {
 
   return (
     <group>
-      {/* Posts */}
+      {/* Corner posts (visual only, no physics) */}
       {corners.map((pos, i) => (
-        <RigidBody key={`post-${i}`} type="fixed" friction={0.5} restitution={0.3}>
-          <mesh castShadow position={[pos[0], H / 2, pos[2]]}>
-            <cylinderGeometry args={[postRadius, postRadius, H, 8]} />
-            <meshStandardMaterial color="#666666" metalness={0.6} roughness={0.4} />
-          </mesh>
-        </RigidBody>
+        <mesh key={`post-${i}`} castShadow position={[pos[0], postHeight / 2, pos[2]]}>
+          <cylinderGeometry args={[postRadius, postRadius, postHeight, 8]} />
+          <meshStandardMaterial color="#666666" metalness={0.6} roughness={0.4} />
+        </mesh>
       ))}
 
-      {/* Net panels — left wall */}
-      <RigidBody type="fixed" friction={0.1} restitution={0.5}>
-        <mesh position={[-W / 2, H / 2, 0]}>
-          <boxGeometry args={[0.05, H, L]} />
-          <meshStandardMaterial color="#aaaaaa" transparent opacity={netOpacity} wireframe />
-        </mesh>
-      </RigidBody>
-
-      {/* Net panels — right wall */}
-      <RigidBody type="fixed" friction={0.1} restitution={0.5}>
-        <mesh position={[W / 2, H / 2, 0]}>
-          <boxGeometry args={[0.05, H, L]} />
-          <meshStandardMaterial color="#aaaaaa" transparent opacity={netOpacity} wireframe />
-        </mesh>
-      </RigidBody>
-
-      {/* Net panels — back wall (behind pitcher) */}
-      <RigidBody type="fixed" friction={0.1} restitution={0.5}>
-        <mesh position={[0, H / 2, -L / 2]}>
-          <boxGeometry args={[W, H, 0.05]} />
-          <meshStandardMaterial color="#aaaaaa" transparent opacity={netOpacity} wireframe />
-        </mesh>
-      </RigidBody>
-
-      {/* Net panels — front wall (behind batter, entry side) — two halves with gap */}
-      <RigidBody type="fixed" friction={0.1} restitution={0.5}>
-        <mesh position={[-W / 4 - 0.25, H / 2, L / 2]}>
-          <boxGeometry args={[W / 2 - 0.5, H, 0.05]} />
-          <meshStandardMaterial color="#aaaaaa" transparent opacity={netOpacity} wireframe />
-        </mesh>
-      </RigidBody>
-      <RigidBody type="fixed" friction={0.1} restitution={0.5}>
-        <mesh position={[W / 4 + 0.25, H / 2, L / 2]}>
-          <boxGeometry args={[W / 2 - 0.5, H, 0.05]} />
-          <meshStandardMaterial color="#aaaaaa" transparent opacity={netOpacity} wireframe />
-        </mesh>
-      </RigidBody>
-
-      {/* Ceiling net */}
-      <RigidBody type="fixed" friction={0.1} restitution={0.5}>
-        <mesh position={[0, H, 0]}>
-          <boxGeometry args={[W, 0.05, L]} />
-          <meshStandardMaterial color="#aaaaaa" transparent opacity={netOpacity} wireframe />
-        </mesh>
-      </RigidBody>
-
-      {/* Floor */}
+      {/* Floor — dirt area */}
       <RigidBody type="fixed" friction={0.8} restitution={0}>
         <mesh receiveShadow position={[0, 0.02, 0]}>
           <boxGeometry args={[W, 0.04, L]} />
@@ -160,15 +109,27 @@ function CageFrame() {
         <boxGeometry args={[1.2, 0.01, 1.8]} />
         <meshStandardMaterial color="#ffffff" transparent opacity={0.3} />
       </mesh>
+
+      {/* Home plate */}
+      <mesh position={[0, 0.06, BATTING.BATTER_OFFSET_Z]}>
+        <boxGeometry args={[0.4, 0.01, 0.4]} />
+        <meshStandardMaterial color="#ffffff" transparent opacity={0.5} />
+      </mesh>
+
+      {/* Pitcher's mound marking */}
+      <mesh position={[0, 0.05, BATTING.PITCHER_OFFSET_Z]}>
+        <cylinderGeometry args={[0.3, 0.3, 0.02, 12]} />
+        <meshStandardMaterial color="#ffffff" transparent opacity={0.2} />
+      </mesh>
     </group>
   )
 }
 
 /**
- * PitchingMachine — visual box at pitcher end; auto-throws balls when player is mounted.
+ * PitchingMachine — auto-throws balls toward the plate when mounted.
  */
-function PitchingMachine({ ballPool, ballRefs }) {
-  const pitchTimer = useRef(1.5) // start with short delay for first pitch
+function PitchingMachine({ ballPool, ballRefs, cagePos }) {
+  const pitchTimer = useRef(1.5)
   const nextBallIndex = useRef(0)
 
   useFrame((state, delta) => {
@@ -182,7 +143,6 @@ function PitchingMachine({ ballPool, ballRefs }) {
     if (pitchTimer.current <= 0) {
       pitchTimer.current = BATTING.PITCH_INTERVAL
 
-      // Find a free ball or recycle oldest
       let idx = -1
       for (let i = 0; i < BATTING.MAX_BALLS; i++) {
         if (!ballPool.current[i].active) {
@@ -191,66 +151,71 @@ function PitchingMachine({ ballPool, ballRefs }) {
         }
       }
       if (idx === -1) {
-        // Recycle using round-robin
         idx = nextBallIndex.current
         nextBallIndex.current = (nextBallIndex.current + 1) % BATTING.MAX_BALLS
       }
 
       const rb = ballRefs.current[idx]?.current
       if (rb) {
-        // Position at pitching machine
-        const startX = (Math.random() - 0.5) * BATTING.PITCH_VARIATION_X
-        const startY = BATTING.PITCH_HEIGHT + (Math.random() - 0.5) * BATTING.PITCH_VARIATION_Y
-        const startZ = BATTING.PITCHER_OFFSET_Z
+        const varX = (Math.random() - 0.5) * BATTING.PITCH_VARIATION_X
+        const varY = (Math.random() - 0.5) * BATTING.PITCH_VARIATION_Y
 
-        rb.setTranslation({ x: startX, y: startY, z: startZ }, true)
-        rb.setLinvel({ x: 0, y: 0, z: BATTING.PITCH_SPEED }, true) // toward +Z (batter)
+        const worldX = cagePos[0] + varX
+        const worldY = cagePos[1] + BATTING.PITCH_HEIGHT + varY
+        const worldZ = cagePos[2] + BATTING.PITCHER_OFFSET_Z
+
+        rb.setTranslation({ x: worldX, y: worldY, z: worldZ }, true)
+        rb.setLinvel({ x: 0, y: 0, z: BATTING.PITCH_SPEED }, true)
         rb.setAngvel({ x: 0, y: 0, z: 0 }, true)
         rb.wakeUp()
 
         ballPool.current[idx].active = true
         ballPool.current[idx].timer = BATTING.BALL_LIFETIME
         ballPool.current[idx].hit = false
+        ballPool.current[idx].hitOrigin = null
+        ballPool.current[idx].landed = false
+        ballPool.current[idx].maxDist = 0
       }
     }
   })
 
   return (
     <group position={[0, 0, BATTING.PITCHER_OFFSET_Z]}>
-      {/* Machine body */}
       <mesh castShadow position={[0, 0.8, 0]}>
         <boxGeometry args={[0.8, 1.0, 0.6]} />
         <meshStandardMaterial color="#555555" roughness={0.3} metalness={0.7} />
       </mesh>
-      {/* Barrel */}
       <mesh castShadow position={[0, 0.9, 0.35]} rotation={[Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[0.12, 0.15, 0.3, 12]} />
         <meshStandardMaterial color="#333333" roughness={0.2} metalness={0.9} />
       </mesh>
-      {/* Base */}
       <mesh castShadow position={[0, 0.15, 0]}>
         <boxGeometry args={[1.0, 0.3, 0.8]} />
         <meshStandardMaterial color="#444444" roughness={0.5} metalness={0.5} />
+      </mesh>
+      <mesh position={[0, 1.35, 0.1]}>
+        <sphereGeometry args={[0.05, 8, 8]} />
+        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={0.5} />
       </mesh>
     </group>
   )
 }
 
 /**
- * Bat — visual bat mesh + swing animation state machine + hit detection.
+ * Bat — horizontal bat extending from batter across the plate.
+ * Swing sweeps from camera side (+Z) toward pitcher (-Z).
  */
-function Bat({ ballPool, ballRefs }) {
+function Bat({ ballPool, ballRefs, cagePos }) {
   const pivotGroupRef = useRef()
-  const batTipRef = useRef() // for computing bat head world position
+  const batTipRef = useRef()
 
   const swingPhase = useRef(PHASE_IDLE)
   const phaseTimer = useRef(0)
   const cooldownTimer = useRef(0)
 
-  // Swing rotation angles
   const IDLE_ANGLE = 1.2
   const WINDUP_ANGLE = 1.5
-  const STRIKE_END_ANGLE = -1.8
+  const STRIKE_END_ANGLE = -1.5
 
   useFrame((state, delta) => {
     const store = useGameStore.getState()
@@ -265,12 +230,10 @@ function Bat({ ballPool, ballRefs }) {
       return
     }
 
-    // Cooldown
     if (cooldownTimer.current > 0) {
       cooldownTimer.current -= delta
     }
 
-    // Trigger swing from store flag
     if (store.battingSwing) {
       if (swingPhase.current === PHASE_IDLE && cooldownTimer.current <= 0) {
         swingPhase.current = PHASE_WINDUP
@@ -279,7 +242,6 @@ function Bat({ ballPool, ballRefs }) {
       store.setBattingSwing(false)
     }
 
-    // Phase animation
     phaseTimer.current += delta
     let pivotAngle = IDLE_ANGLE
 
@@ -294,19 +256,17 @@ function Bat({ ballPool, ballRefs }) {
         break
       }
       case PHASE_STRIKE: {
-        const strikeDuration = BATTING.SWING_STRIKE_END - BATTING.SWING_STRIKE_START + 0.07 // total strike arc time
+        const strikeDuration = 0.2
         const t = Math.min(phaseTimer.current / strikeDuration, 1)
-        const eased = 1 - (1 - t) * (1 - t) // ease out quad
+        const eased = 1 - (1 - t) * (1 - t)
         pivotAngle = WINDUP_ANGLE + eased * (STRIKE_END_ANGLE - WINDUP_ANGLE)
 
-        // Hit detection during strike phase
+        // Hit detection during strike
         if (batTipRef.current && pivotGroupRef.current) {
-          // Get bat tip world position
           pivotGroupRef.current.updateWorldMatrix(true, false)
           batTipRef.current.updateWorldMatrix(true, false)
           _batHead.setFromMatrixPosition(batTipRef.current.matrixWorld)
 
-          // Check against all active balls
           for (let i = 0; i < BATTING.MAX_BALLS; i++) {
             const ball = ballPool.current[i]
             if (!ball.active || ball.hit) continue
@@ -317,28 +277,24 @@ function Bat({ ballPool, ballRefs }) {
             const bPos = rb.translation()
             _ballPos.set(bPos.x, bPos.y, bPos.z)
 
-            // Convert ball position to world space (balls are children of the group)
-            // Ball RBs are in local cage space — need to add cage position
-            const cageRef = useGameStore.getState().battingRef
-            if (cageRef?.current) {
-              const cagePos = cageRef.current.position
-              _ballPos.set(bPos.x + cagePos.x, bPos.y + cagePos.y, bPos.z + cagePos.z)
-            }
-
             const dist = _batHead.distanceTo(_ballPos)
 
             if (dist < BATTING.HIT_DISTANCE) {
-              // HIT!
               ball.hit = true
+              // Record hit origin (world-space plate position) for distance tracking
+              ball.hitOrigin = [
+                cagePos[0],
+                cagePos[1],
+                cagePos[2] + BATTING.BATTER_OFFSET_Z,
+              ]
+              ball.landed = false
+              ball.maxDist = 0
 
-              // Contact timing determines trajectory
-              const contactT = t // 0=early, 1=late, 0.5=center
+              const contactT = t
               const quality = 1.0 - Math.abs(contactT - 0.5) * 2.0
               const speed = BATTING.HIT_BASE_SPEED + quality * (BATTING.HIT_MAX_SPEED - BATTING.HIT_BASE_SPEED)
-              const spreadAngle = (contactT - 0.5) * 1.2 // radians, early=left, late=right
+              const spreadAngle = (contactT - 0.5) * 1.2
 
-              // Launch direction: batter faces -Z (BATTER_FACING_YAW = PI)
-              // So hits should go toward -Z (pitcher direction)
               const launchX = Math.sin(spreadAngle) * Math.cos(BATTING.HIT_LAUNCH_ANGLE) * speed
               const launchY = Math.sin(BATTING.HIT_LAUNCH_ANGLE) * speed
               const launchZ = -Math.cos(spreadAngle) * Math.cos(BATTING.HIT_LAUNCH_ANGLE) * speed
@@ -361,9 +317,9 @@ function Bat({ ballPool, ballRefs }) {
         break
       }
       case PHASE_FOLLOW: {
-        const followDuration = BATTING.SWING_DURATION - (BATTING.SWING_STRIKE_END - BATTING.SWING_STRIKE_START + 0.07) - BATTING.SWING_WINDUP
-        const t = Math.min(phaseTimer.current / Math.max(followDuration, 0.05), 1)
-        const eased = t * (2 - t) // ease out
+        const followDuration = 0.12
+        const t = Math.min(phaseTimer.current / followDuration, 1)
+        const eased = t * (2 - t)
         pivotAngle = STRIKE_END_ANGLE + eased * (IDLE_ANGLE - STRIKE_END_ANGLE)
         if (t >= 1) {
           swingPhase.current = PHASE_IDLE
@@ -377,31 +333,40 @@ function Bat({ ballPool, ballRefs }) {
   })
 
   return (
-    <group position={[0, 0, BATTING.BATTER_OFFSET_Z]} visible={false}>
-      {/* Pivot at hand height — horizontal swing rotates around Y */}
+    <group position={[BATTING.BATTER_OFFSET_X, 0, BATTING.BATTER_OFFSET_Z]} visible={false}>
       <group ref={pivotGroupRef} position={[0, BATTING.PITCH_HEIGHT, 0]}>
-        {/* Bat handle */}
-        <mesh castShadow position={[0, 0, -0.15]}>
+        {/* Handle */}
+        <mesh castShadow position={[-0.15, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.025, 0.03, 0.3, 8]} />
           <meshStandardMaterial color="#8B4513" roughness={0.5} />
         </mesh>
-        {/* Bat barrel */}
-        <mesh castShadow position={[0, 0, -(0.3 + BATTING.BAT_LENGTH / 2)]}>
-          <cylinderGeometry args={[0.035, 0.055, BATTING.BAT_LENGTH, 8]} rotation={[Math.PI / 2, 0, 0]} />
+        {/* Knob */}
+        <mesh castShadow position={[0.01, 0, 0]}>
+          <sphereGeometry args={[0.035, 8, 8]} />
+          <meshStandardMaterial color="#6B3410" roughness={0.6} />
+        </mesh>
+        {/* Barrel */}
+        <mesh castShadow position={[-(0.3 + BATTING.BAT_LENGTH / 2), 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.055, 0.035, BATTING.BAT_LENGTH, 10]} />
           <meshStandardMaterial color="#c49a6c" roughness={0.4} metalness={0.1} />
         </mesh>
-        {/* Invisible bat tip marker for hit detection */}
-        <group ref={batTipRef} position={[0, 0, -(0.3 + BATTING.BAT_LENGTH)]} />
+        {/* Barrel end cap */}
+        <mesh castShadow position={[-(0.3 + BATTING.BAT_LENGTH), 0, 0]}>
+          <sphereGeometry args={[0.055, 8, 8]} />
+          <meshStandardMaterial color="#c49a6c" roughness={0.4} metalness={0.1} />
+        </mesh>
+        {/* Bat tip marker */}
+        <group ref={batTipRef} position={[-(0.3 + BATTING.BAT_LENGTH), 0, 0]} />
       </group>
     </group>
   )
 }
 
 /**
- * BallPool — pre-allocated dynamic RigidBody balls, recycled for each pitch.
+ * BallPool — pre-allocated balls with distance tracking.
+ * Tracks how far each hit ball travels from the plate and reports to store.
  */
-function BallPool({ ballRefs, ballPool }) {
-  // Manage ball lifetimes
+function BallPool({ ballRefs, ballPool, cagePos }) {
   useFrame((state, delta) => {
     for (let i = 0; i < BATTING.MAX_BALLS; i++) {
       const ball = ballPool.current[i]
@@ -411,15 +376,49 @@ function BallPool({ ballRefs, ballPool }) {
       const rb = ballRefs.current[i]?.current
       if (!rb) continue
 
-      // Deactivate if expired or too far
       const pos = rb.translation()
-      const dist = Math.sqrt(pos.x * pos.x + pos.y * pos.y + pos.z * pos.z)
+
+      // Distance tracking for hit balls
+      if (ball.hit && ball.hitOrigin) {
+        const dx = pos.x - ball.hitOrigin[0]
+        const dz = pos.z - ball.hitOrigin[2]
+        const horizontalDist = Math.sqrt(dx * dx + dz * dz)
+
+        // Track max distance (ball may bounce and roll further)
+        if (horizontalDist > ball.maxDist) {
+          ball.maxDist = horizontalDist
+        }
+
+        // Detect landing: ball was in the air and now near ground level
+        const vel = rb.linvel()
+        const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y + vel.z * vel.z)
+        if (!ball.landed && pos.y <= cagePos[1] + 0.5 && vel.y < 0) {
+          ball.landed = true
+          useGameStore.getState().setBattingLastHitDist(Math.round(ball.maxDist))
+        }
+        // Also update if ball is rolling further after landing
+        if (ball.landed && speed < 0.5) {
+          useGameStore.getState().setBattingLastHitDist(Math.round(ball.maxDist))
+        }
+      }
+
+      // Cleanup
+      const dx = pos.x - cagePos[0]
+      const dy = pos.y - cagePos[1]
+      const dz = pos.z - cagePos[2]
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
 
       if (ball.timer <= 0 || dist > BATTING.BALL_CLEANUP_DISTANCE || pos.y < -5) {
+        // Final distance update before cleanup
+        if (ball.hit && ball.maxDist > 0) {
+          useGameStore.getState().setBattingLastHitDist(Math.round(ball.maxDist))
+        }
         ball.active = false
         ball.hit = false
-        // Move ball far away and sleep it
-        rb.setTranslation({ x: 0, y: -20, z: 0 }, true)
+        ball.hitOrigin = null
+        ball.landed = false
+        ball.maxDist = 0
+        rb.setTranslation({ x: cagePos[0], y: -20, z: cagePos[2] }, true)
         rb.setLinvel({ x: 0, y: 0, z: 0 }, true)
         rb.setAngvel({ x: 0, y: 0, z: 0 }, true)
       }
@@ -440,6 +439,7 @@ function BallPool({ ballRefs, ballPool }) {
           friction={0.5}
           linearDamping={0.1}
           angularDamping={0.3}
+          gravityScale={0.15}
         >
           <mesh castShadow>
             <sphereGeometry args={[BATTING.BALL_RADIUS, 12, 12]} />

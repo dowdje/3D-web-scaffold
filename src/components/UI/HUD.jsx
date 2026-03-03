@@ -26,6 +26,7 @@ export function HUD() {
   const basketballPower = useGameStore((s) => s.basketballPower)
   const nearBatting = useGameStore((s) => s.nearBatting)
   const battingMounted = useGameStore((s) => s.battingMounted)
+  const battingLastHitDist = useGameStore((s) => s.battingLastHitDist)
 
   return (
     <div
@@ -151,6 +152,11 @@ export function HUD() {
         <div style={{ marginTop: 4 }}>
           <div style={{ color: '#ffaa00', fontWeight: 'bold', marginBottom: 4 }}>Batting Cage</div>
           <div style={{ color: '#ffaa00' }}>H — swing bat | C — exit</div>
+          {battingLastHitDist > 0 && (
+            <div style={{ color: '#ffdd44', fontWeight: 'bold', fontSize: 16, marginTop: 6 }}>
+              {battingLastHitDist}m
+            </div>
+          )}
         </div>
       )}
     </div>
