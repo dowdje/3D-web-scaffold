@@ -19,6 +19,7 @@ export const PLAYER = {
   COYOTE_TIME: 0.12,       // Seconds after leaving edge where jump still works
   JUMP_BUFFER: 0.1,        // Seconds before landing where jump input is buffered
   RESPAWN_Y: -20,          // Y threshold to trigger respawn
+  TURN_SPEED: 3.0,         // Radians per second for A/D rotation
 }
 
 // Camera

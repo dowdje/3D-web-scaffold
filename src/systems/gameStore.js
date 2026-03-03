@@ -16,6 +16,8 @@ export const useGameStore = create((set, get) => ({
   setPlayerPosition: (pos) => set({ playerPosition: pos }),
   setPlayerVelocity: (vel) => set({ playerVelocity: vel }),
   setIsGrounded: (grounded) => set({ isGrounded: grounded }),
+  playerYaw: 0,
+  setPlayerYaw: (yaw) => set({ playerYaw: yaw }),
 
   // --- Game phase ---
   phase: 'playing', // 'menu' | 'playing' | 'paused' | 'gameover'

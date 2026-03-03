@@ -35,7 +35,8 @@ npm run preview  # Preview production build
 ### Player Controller (`src/components/Player/Player.jsx`)
 This is the most complex and sensitive file. It handles:
 - Physics-based movement using a **capsule RigidBody** with locked rotations
-- Camera-relative directional input (forward = toward camera facing direction)
+- **Tank-style controls** — A/D rotate the player (via a `yawRef`), W/S move forward/backward along the facing direction, Q/E strafe perpendicular to facing
+- The player's facing direction (`yaw`) is stored in a ref and published to the Zustand store (`playerYaw`) so the camera can orbit behind the player
 - Ground detection via **raycasting** downward from the capsule bottom
 - **Coyote time** — brief jump grace period after leaving an edge
 - **Jump buffering** — pre-landing jump inputs are queued and executed on ground contact
@@ -43,7 +44,7 @@ This is the most complex and sensitive file. It handles:
 - Auto-respawn when falling below `PLAYER.RESPAWN_Y`
 
 When modifying the player controller, be careful with:
-- The `useFrame` loop runs every frame; avoid allocations inside it (reuse the module-level temp vectors like `_direction`, `_frontVector`, etc.)
+- The `useFrame` loop runs every frame; avoid allocations inside it (reuse the module-level temp vectors like `_direction`)
 - `rigidBodyRef.current` can be null during initialization — always null-check
 - `enabledRotations={[false, false, false]}` on the RigidBody prevents physics from tumbling the capsule; rotation is handled manually on the visual model only
 
@@ -73,7 +74,7 @@ To create a new level:
 - Sensors (`sensor` prop on colliders) are used for triggers/collectibles — they detect overlap without physical collision
 
 ### Camera System
-The `FollowCamera` runs in `useFrame` and lerps toward an offset position behind/above the player. It reads player position directly from the Zustand store via `getState()` (not via React subscription) to avoid render overhead.
+The `FollowCamera` runs in `useFrame` and lerps toward an offset position behind/above the player. It reads `playerPosition` and `playerYaw` from the Zustand store via `getState()` (not via React subscription) to avoid render overhead. The camera offset is rotated by the player's yaw so it always orbits behind the facing direction.
 
 ## Code Style & Conventions
 

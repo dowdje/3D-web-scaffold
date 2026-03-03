@@ -10,19 +10,18 @@ import { useGameStore } from '../../systems/gameStore'
 import { PlayerModel } from './PlayerModel'
 
 const _direction = new THREE.Vector3()
-const _frontVector = new THREE.Vector3()
-const _sideVector = new THREE.Vector3()
-const _cameraDirection = new THREE.Vector3()
 
 export function Player({ spawnPosition = [0, 3, 0] }) {
   const rigidBodyRef = useRef()
   const modelRef = useRef()
+  const yawRef = useRef(0)
 
   const [, getKeys] = useKeyboardControls()
   const { rapier, world } = useRapier()
 
   const setPlayerPosition = useGameStore((s) => s.setPlayerPosition)
   const setIsGrounded = useGameStore((s) => s.setIsGrounded)
+  const setPlayerYaw = useGameStore((s) => s.setPlayerYaw)
   const respawnPoint = useGameStore((s) => s.respawnPoint)
 
   // Jump state
@@ -55,7 +54,7 @@ export function Player({ spawnPosition = [0, 3, 0] }) {
     const rb = rigidBodyRef.current
     if (!rb) return
 
-    const { forward, backward, left, right, jump, sprint } = getKeys()
+    const { forward, backward, left, right, strafeLeft, strafeRight, jump, sprint } = getKeys()
     const velocity = rb.linvel()
     const position = rb.translation()
 
@@ -92,25 +91,32 @@ export function Player({ spawnPosition = [0, 3, 0] }) {
       if (jumpBufferTimer.current <= 0) jumpBuffered.current = false
     }
 
-    // --- Movement direction relative to camera ---
-    const camera = state.camera
-    camera.getWorldDirection(_cameraDirection)
-    _cameraDirection.y = 0
-    _cameraDirection.normalize()
+    // --- Tank controls: A/D rotate, W/S move along facing direction ---
+    if (left) yawRef.current += PLAYER.TURN_SPEED * delta
+    if (right) yawRef.current -= PLAYER.TURN_SPEED * delta
 
-    const cameraRight = new THREE.Vector3()
-      .crossVectors(_cameraDirection, THREE.Object3D.DEFAULT_UP)
-      .normalize()
+    // Forward vector from yaw
+    const forwardX = -Math.sin(yawRef.current)
+    const forwardZ = -Math.cos(yawRef.current)
 
-    _frontVector.set(0, 0, 0)
-    _sideVector.set(0, 0, 0)
+    let moveInput = 0
+    if (forward) moveInput += 1
+    if (backward) moveInput -= 1
 
-    if (forward) _frontVector.add(_cameraDirection)
-    if (backward) _frontVector.sub(_cameraDirection)
-    if (left) _sideVector.sub(cameraRight)
-    if (right) _sideVector.add(cameraRight)
+    // Strafe: perpendicular to facing direction (right is 90° clockwise from forward)
+    let strafeInput = 0
+    if (strafeRight) strafeInput += 1
+    if (strafeLeft) strafeInput -= 1
 
-    _direction.copy(_frontVector).add(_sideVector).normalize()
+    const rightX = -forwardZ
+    const rightZ = forwardX
+
+    _direction.set(
+      forwardX * moveInput + rightX * strafeInput,
+      0,
+      forwardZ * moveInput + rightZ * strafeInput
+    )
+    if (_direction.length() > 1) _direction.normalize()
 
     // Speed
     const speed = sprint ? PLAYER.SPRINT_SPEED : PLAYER.WALK_SPEED
@@ -165,13 +171,11 @@ export function Player({ spawnPosition = [0, 3, 0] }) {
 
     // --- Update store ---
     setPlayerPosition([position.x, position.y, position.z])
+    setPlayerYaw(yawRef.current)
 
-    // --- Rotate model to face movement direction ---
-    if (modelRef.current && _direction.length() > 0.1) {
-      const targetAngle = Math.atan2(_direction.x, _direction.z)
-      const currentRotation = modelRef.current.rotation.y
-      const lerpedAngle = THREE.MathUtils.lerp(currentRotation, targetAngle, 0.15)
-      modelRef.current.rotation.y = lerpedAngle
+    // --- Rotate model to match yaw ---
+    if (modelRef.current) {
+      modelRef.current.rotation.y = yawRef.current
     }
   })
 

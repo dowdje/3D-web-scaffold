@@ -15,7 +15,12 @@ Open `http://localhost:5173` and start jumping around.
 
 | Key | Action |
 |---|---|
-| WASD / Arrow Keys | Move |
+| W / Up Arrow | Move forward |
+| S / Down Arrow | Move backward |
+| A / Left Arrow | Rotate left |
+| D / Right Arrow | Rotate right |
+| Q | Strafe left |
+| E | Strafe right |
 | Space | Jump |
 | Shift | Sprint |
 
@@ -62,7 +67,7 @@ src/
 
 ### Player Controller (`components/Player/Player.jsx`)
 The core of the platformer feel. Uses a **capsule collider** for smooth movement over edges. Features:
-- **Camera-relative movement** — Forward always means "toward where you're looking"
+- **Tank-style controls** — A/D rotate the player, W/S move forward/backward relative to facing direction, Q/E strafe
 - **Coyote time** — Brief grace period after leaving an edge where you can still jump
 - **Jump buffering** — Jump input registered slightly before landing is executed on contact
 - **Air control** — Reduced but present movement while airborne
