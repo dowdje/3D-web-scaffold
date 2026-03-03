@@ -7,6 +7,9 @@ export const Controls = {
   strafeRight: 'strafeRight',
   jump: 'jump',
   sprint: 'sprint',
+  weaponSwap: 'weaponSwap',
+  reload: 'reload',
+  fire: 'fire',
 }
 
 export const CONTROLS_MAP = [
@@ -18,4 +21,7 @@ export const CONTROLS_MAP = [
   { name: Controls.strafeRight, keys: ['KeyE'] },
   { name: Controls.jump, keys: ['Space'] },
   { name: Controls.sprint, keys: ['ShiftLeft', 'ShiftRight'] },
+  { name: Controls.weaponSwap, keys: ['KeyF'] },
+  { name: Controls.reload, keys: ['KeyR'] },
+  { name: Controls.fire, keys: ['KeyK'] },
 ]

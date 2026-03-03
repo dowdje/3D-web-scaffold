@@ -5,10 +5,17 @@ import { KeyboardControls } from '@react-three/drei'
 import { Leva } from 'leva'
 
 import { Player } from './components/Player/Player'
-import { Sandbox } from './components/Level/Sandbox'
+import { Arena } from './components/Level/Arena'
 import { Environment } from './components/Environment/Environment'
 import { FollowCamera } from './components/Camera/FollowCamera'
 import { HUD } from './components/UI/HUD'
+import { Crosshair } from './components/UI/Crosshair'
+import { DeathScreen } from './components/UI/DeathScreen'
+import { HitMarker } from './components/UI/HitMarker'
+import { ProjectileManager } from './components/Combat/ProjectileManager'
+import { HitscanTracer } from './components/Combat/HitscanTracer'
+import { ExplosionEffect } from './components/Combat/ExplosionEffect'
+import { EnemyManager } from './components/Enemy/EnemyManager'
 import { CONTROLS_MAP } from './systems/controls'
 import { useGameStore } from './systems/gameStore'
 
@@ -19,6 +26,9 @@ export default function App() {
     <>
       <Leva collapsed />
       <HUD />
+      <Crosshair />
+      <DeathScreen />
+      <HitMarker />
       <KeyboardControls map={CONTROLS_MAP}>
         <Canvas
           shadows
@@ -34,9 +44,13 @@ export default function App() {
             >
               <Environment />
               <Player />
-              <Sandbox />
+              <Arena />
+              <ProjectileManager />
+              <EnemyManager />
             </Physics>
             <FollowCamera />
+            <HitscanTracer />
+            <ExplosionEffect />
           </Suspense>
         </Canvas>
       </KeyboardControls>

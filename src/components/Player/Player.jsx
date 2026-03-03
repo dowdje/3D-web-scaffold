@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react'
+import React, { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useKeyboardControls } from '@react-three/drei'
 import { RigidBody, CapsuleCollider, useRapier } from '@react-three/rapier'
@@ -8,6 +8,7 @@ import { Controls } from '../../systems/controls'
 import { PLAYER } from '../../systems/constants'
 import { useGameStore } from '../../systems/gameStore'
 import { PlayerModel } from './PlayerModel'
+import { getEntityByCollider } from '../../utils/entityRegistry'
 
 const _direction = new THREE.Vector3()
 
@@ -19,9 +20,6 @@ export function Player({ spawnPosition = [0, 3, 0] }) {
   const [, getKeys] = useKeyboardControls()
   const { rapier, world } = useRapier()
 
-  const setPlayerPosition = useGameStore((s) => s.setPlayerPosition)
-  const setIsGrounded = useGameStore((s) => s.setIsGrounded)
-  const setPlayerYaw = useGameStore((s) => s.setPlayerYaw)
   const respawnPoint = useGameStore((s) => s.respawnPoint)
 
   // Jump state
@@ -31,7 +29,14 @@ export function Player({ spawnPosition = [0, 3, 0] }) {
   const jumpBufferTimer = useRef(0)
   const canJump = useRef(true)
 
-  // Cast a ray downward from the player to detect ground
+  // Weapon swap/reload — single-press tracking
+  const prevWeaponSwap = useRef(false)
+  const prevReload = useRef(false)
+  const prevFire = useRef(false)
+
+  // Firing timing
+  const lastFireTime = useRef(0)
+
   const checkGrounded = () => {
     const rb = rigidBodyRef.current
     if (!rb) return false
@@ -54,7 +59,10 @@ export function Player({ spawnPosition = [0, 3, 0] }) {
     const rb = rigidBodyRef.current
     if (!rb) return
 
-    const { forward, backward, left, right, strafeLeft, strafeRight, jump, sprint } = getKeys()
+    const store = useGameStore.getState()
+    if (store.isDead) return
+
+    const { forward, backward, left, right, strafeLeft, strafeRight, jump, sprint, weaponSwap, reload, fire } = getKeys()
     const velocity = rb.linvel()
     const position = rb.translation()
 
@@ -71,7 +79,6 @@ export function Player({ spawnPosition = [0, 3, 0] }) {
     // --- Ground check ---
     const isOnGround = checkGrounded()
     grounded.current = isOnGround
-    setIsGrounded(isOnGround)
 
     // Coyote time
     if (isOnGround) {
@@ -103,7 +110,7 @@ export function Player({ spawnPosition = [0, 3, 0] }) {
     if (forward) moveInput += 1
     if (backward) moveInput -= 1
 
-    // Strafe: perpendicular to facing direction (right is 90° clockwise from forward)
+    // Strafe: perpendicular to facing direction
     let strafeInput = 0
     if (strafeRight) strafeInput += 1
     if (strafeLeft) strafeInput -= 1
@@ -118,33 +125,20 @@ export function Player({ spawnPosition = [0, 3, 0] }) {
     )
     if (_direction.length() > 1) _direction.normalize()
 
-    // Speed
     const speed = sprint ? PLAYER.SPRINT_SPEED : PLAYER.WALK_SPEED
     const controlMultiplier = isOnGround ? 1 : PLAYER.AIR_CONTROL
 
-    // Apply movement
     const moveX = _direction.x * speed * controlMultiplier
     const moveZ = _direction.z * speed * controlMultiplier
 
     if (_direction.length() > 0) {
-      rb.setLinvel(
-        {
-          x: moveX,
-          y: velocity.y,
-          z: moveZ,
-        },
-        true
-      )
+      rb.setLinvel({ x: moveX, y: velocity.y, z: moveZ }, true)
     } else if (isOnGround) {
-      // Apply damping when no input and on ground
-      rb.setLinvel(
-        {
-          x: velocity.x * (1 - PLAYER.LINEAR_DAMPING),
-          y: velocity.y,
-          z: velocity.z * (1 - PLAYER.LINEAR_DAMPING),
-        },
-        true
-      )
+      rb.setLinvel({
+        x: velocity.x * (1 - PLAYER.LINEAR_DAMPING),
+        y: velocity.y,
+        z: velocity.z * (1 - PLAYER.LINEAR_DAMPING),
+      }, true)
     }
 
     // --- Jump ---
@@ -159,7 +153,6 @@ export function Player({ spawnPosition = [0, 3, 0] }) {
       jumpBuffered.current = false
     }
 
-    // Allow jump again when key released
     if (!jump) {
       canJump.current = true
     }
@@ -169,9 +162,59 @@ export function Player({ spawnPosition = [0, 3, 0] }) {
       rb.setLinvel({ x: velocity.x, y: PLAYER.MAX_FALL_SPEED, z: velocity.z }, true)
     }
 
-    // --- Update store ---
-    setPlayerPosition([position.x, position.y, position.z])
-    setPlayerYaw(yawRef.current)
+    // --- Weapon swap (single press) ---
+    if (weaponSwap && !prevWeaponSwap.current) {
+      store.swapWeapon?.()
+    }
+    prevWeaponSwap.current = weaponSwap
+
+    // --- Reload (single press) ---
+    if (reload && !prevReload.current) {
+      store.startReload?.()
+    }
+    prevReload.current = reload
+
+    // --- Fire (K key) — fires projectile straight ahead ---
+    if (fire && !prevFire.current) {
+      const now = performance.now()
+      const weapon = store.weapons?.[store.activeWeapon]
+      const weaponDef = store.getWeaponDef?.()
+
+      if (weapon && weaponDef && !store.reloading && weapon.ammo > 0) {
+        const fireInterval = 1000 / weaponDef.fireRate
+        if (now - lastFireTime.current >= fireInterval) {
+          store.fire()
+          lastFireTime.current = now
+
+          const spawnY = position.y + PLAYER.EYE_HEIGHT
+          const projSpeed = weaponDef.projectileSpeed || 40
+
+          store.addProjectile?.({
+            position: [
+              position.x + forwardX * 1.5,
+              spawnY,
+              position.z + forwardZ * 1.5,
+            ],
+            velocity: [
+              forwardX * projSpeed,
+              0,
+              forwardZ * projSpeed,
+            ],
+            damage: weaponDef.damage,
+            splashRadius: weaponDef.splashRadius || 8,
+            time: now,
+          })
+        }
+      }
+    }
+    prevFire.current = fire
+
+    // --- Update store (single batched call to minimize subscriber notifications) ---
+    useGameStore.setState({
+      playerPosition: [position.x, position.y, position.z],
+      playerYaw: yawRef.current,
+      isGrounded: isOnGround,
+    })
 
     // --- Rotate model to match yaw ---
     if (modelRef.current) {
